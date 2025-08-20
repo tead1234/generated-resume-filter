@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  resume-filter:
+    build: .
+    container_name: generated-resume-filter
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data  # 데이터 파일 마운트
+      - ./logs:/app/logs  # 로그 파일 마운트
+    environment:
+      - PYTHONPATH=/app
+      - LOG_LEVEL=INFO
+    restart: unless-stopped
+    
+  # 필요시 Redis나 데이터베이스 추가 가능
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: resume-filter-redis
+  #   ports:
+  #     - "6379:6379"
