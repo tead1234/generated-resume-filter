@@ -10,10 +10,7 @@ class ModelManager:
     """사전훈련된 모델들을 관리하는 클래스"""
     
     SUPPORTED_MODELS = {
-        'gpt2': 'gpt2',
-        'gpt2-medium': 'gpt2-medium',
-        'kogpt2': 'skt/kogpt2-base-v2',
-        'koelectra': 'monologg/koelectra-base-v3-discriminator'
+        'kogpt2': 'skt/kogpt2-base-v2'
     }
     
     def __init__(self):
@@ -52,13 +49,3 @@ class ModelManager:
             logger.error(f"Failed to load model {model_name}: {e}")
             raise
     
-    def unload_model(self, model_name: str):
-        """메모리에서 모델 제거"""
-        if model_name in self.models:
-            del self.models[model_name]
-            torch.cuda.empty_cache() if torch.cuda.is_available() else None
-            logger.info(f"Unloaded model: {model_name}")
-    
-    def get_available_models(self) -> list:
-        """사용 가능한 모델 목록 반환"""
-        return list(self.SUPPORTED_MODELS.keys())

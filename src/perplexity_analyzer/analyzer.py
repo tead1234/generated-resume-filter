@@ -11,8 +11,8 @@ logger = setup_logger(__name__)
 class PerplexityAnalyzer:
     """텍스트의 Perplexity를 분석하여 AI 생성 문장을 탐지하고 분류하는 클래스"""
     
-    # 로그 perplexity 임계값 (1.474 이하면 AI 생성 의심)
-    LOG_PPL_THRESHOLD = 1.474
+    # Perplexity 임계값 (28 이하면 AI 생성 의심)
+    PERPLEXITY_THRESHOLD = 28.0
     
     def __init__(self, model_name: str = 'gpt2', max_length: int = 512):
         """
@@ -27,8 +27,8 @@ class PerplexityAnalyzer:
         
         logger.info(f"PerplexityAnalyzer initialized with {model_name}")
     
-    def calculate_log_perplexity(self, text: str) -> float:
-        """단일 텍스트의 로그 perplexity 계산"""
+    def calculate_perplexity(self, text: str) -> float:
+        """단일 텍스트의 perplexity 계산"""
         if not text or not text.strip():
             return float('inf')
         
@@ -50,26 +50,27 @@ class PerplexityAnalyzer:
             with torch.no_grad():
                 outputs = self.model(**inputs, labels=inputs['input_ids'])
                 loss = outputs.loss
-                log_perplexity = loss.item()  # 이미 자연로그값
+                log_perplexity = loss.item()  # 자연로그값
+                perplexity = math.exp(log_perplexity)  # 실제 perplexity로 변환
                 
-            return log_perplexity
+            return perplexity
             
         except Exception as e:
             logger.error(f"Error calculating log perplexity: {e}")
             return float('inf')
     
-    def classify_sentence(self, log_ppl: float) -> Dict[str, Union[str, float]]:
-        """로그 perplexity 기반으로 문장 분류"""
-        if log_ppl == float('inf'):
+    def classify_sentence(self, ppl: float) -> Dict[str, Union[str, float]]:
+        """perplexity 기반으로 문장 분류"""
+        if ppl == float('inf'):
             return {
                 'classification': 'ERROR',
                 'confidence': 0.0,
                 'ai_suspicious': False
             }
         
-        if log_ppl <= self.LOG_PPL_THRESHOLD:
-            # AI 생성 의심
-            confidence = (self.LOG_PPL_THRESHOLD - log_ppl) / self.LOG_PPL_THRESHOLD
+        if ppl <= self.PERPLEXITY_THRESHOLD:
+            # AI 생성 의심 (낮은 perplexity)
+            confidence = (self.PERPLEXITY_THRESHOLD - ppl) / self.PERPLEXITY_THRESHOLD
             confidence = max(0.0, min(1.0, confidence))
             
             return {
@@ -78,8 +79,8 @@ class PerplexityAnalyzer:
                 'ai_suspicious': True
             }
         else:
-            # 자연스러운 문장
-            confidence = min(1.0, (log_ppl - self.LOG_PPL_THRESHOLD) / 2.0)
+            # 자연스러운 문장 (높은 perplexity)
+            confidence = min(1.0, (ppl - self.PERPLEXITY_THRESHOLD) / 20.0)
             
             return {
                 'classification': 'NATURAL',
@@ -109,12 +110,12 @@ class PerplexityAnalyzer:
         errors = []
         
         for i, sentence in enumerate(tqdm(sentences, desc="Analyzing sentences")):
-            log_ppl = self.calculate_log_perplexity(sentence)
-            classification = self.classify_sentence(log_ppl)
+            ppl = self.calculate_perplexity(sentence)
+            classification = self.classify_sentence(ppl)
             
             sentence_data = {
                 'text': sentence,
-                'log_perplexity': log_ppl,
+                'perplexity': ppl,
                 'position': i,
                 **classification
             }
@@ -187,5 +188,5 @@ class PerplexityAnalyzer:
             'model_name': self.model_name,
             'device': str(self.model_manager.device),
             'max_length': self.max_length,
-            'log_ppl_threshold': self.LOG_PPL_THRESHOLD
+            'perplexity_threshold': self.PERPLEXITY_THRESHOLD
         }
